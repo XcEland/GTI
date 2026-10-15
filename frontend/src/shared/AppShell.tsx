@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
+import geoTargetMark from '../assets/geotarget-mark.png'
 import type { WorkspaceView } from '../features/map-workspace/types/mapTypes'
 import type { DataView } from '../features/data/types/dataTypes'
 import type { TargetView } from '../features/targets/types/targetTypes'
@@ -66,9 +67,14 @@ export function AppShell({ children, activeWorkspace, contextLabel, contextValue
   return (
     <div className={`app-shell workspace-${activeWorkspace} ${sidebarExpanded ? 'sidebar-is-expanded' : ''}`}>
       <aside className="global-sidebar" aria-label="Primary navigation">
-        <div className="brand-mark" aria-label="GeoTarget Intelligence">
-          <span className="brand-symbol" aria-hidden="true"><span /></span>
-          {sidebarExpanded && <span className="brand-copy"><strong>Geo<span>Target</span></strong><small>Intelligence</small></span>}
+        <div className={`brand-mark ${sidebarExpanded ? 'is-expanded' : ''}`} aria-label="GeoTarget Intelligence">
+          <img className="brand-logo" src={geoTargetMark} alt="" aria-hidden="true" />
+          {sidebarExpanded && (
+            <span className="brand-copy" aria-hidden="true">
+              <strong>Geo<span>Target</span></strong>
+              <small>Intelligence</small>
+            </span>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -129,6 +135,13 @@ export function AppShell({ children, activeWorkspace, contextLabel, contextValue
           {activeWorkspace === 'map' ? <MapPinned size={17} aria-hidden="true" /> : <BriefcaseBusiness size={17} aria-hidden="true" />}
           <span><small>{contextLabel}</small><strong>{contextValue}</strong></span>
           <ChevronDown className="context-chevron" size={15} aria-hidden="true" />
+          <select className="context-workspace-select" value={activeWorkspace} onChange={(event) => onNavigate(event.target.value as AppWorkspace)} aria-label="Switch workspace">
+            <option value="dashboard">Dashboard</option>
+            <option value="projects">Projects</option>
+            <option value="data">Data</option>
+            <option value="map">Map Workspace</option>
+            <option value="targets">Targets</option>
+          </select>
         </div>}
         <form className="global-search" role="search" onSubmit={submitSearch}>
           <Search size={19} aria-hidden="true" />

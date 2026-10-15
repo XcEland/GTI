@@ -1,13 +1,18 @@
 import { Crosshair, Layers3, Minus, Plus } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FeatureCollection, LineString, Point, Polygon } from 'geojson'
 import type { DatasetTheme } from '../types/dataTypes'
+import {
+  configureTerrainView,
+  getMapStyle,
+  getMapView,
+  MAP_VIEW_OPTIONS,
+  type MapViewId,
+} from '../../../shared/maps/mapViews'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
-
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
 const ZIMBABWE_BOUNDS: [[number, number], [number, number]] = [[25.15, -22.55], [33.15, -15.55]]
 
@@ -57,15 +62,20 @@ interface DatasetMapPreviewProps {
 export function DatasetMapPreview({ theme = 'magnetics', compact = false, interactive = true }: DatasetMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const [mapView, setMapView] = useState<MapViewId>('street')
 
   useEffect(() => {
     if (!containerRef.current) return
     const thematicMarkers: maplibregl.Marker[] = []
+    const viewDefinition = getMapView(mapView)
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE,
+      style: getMapStyle(mapView),
       center: [29.75, -18.7],
       zoom: compact ? 5.1 : 5.55,
+      pitch: viewDefinition.pitch,
+      bearing: viewDefinition.bearing,
+      maxPitch: 85,
       interactive,
       attributionControl: false,
       fadeDuration: 0,
@@ -77,6 +87,7 @@ export function DatasetMapPreview({ theme = 'magnetics', compact = false, intera
     // Add local WGS 84 overlays as soon as the style is ready; remote basemap
     // tiles may continue loading independently on slower development networks.
     map.on('style.load', () => {
+      configureTerrainView(map, mapView)
       map.addSource('data-coverage', { type: 'geojson', data: COVERAGE })
       map.addLayer({
         id: 'data-coverage-fill', type: 'fill', source: 'data-coverage',
@@ -146,7 +157,7 @@ export function DatasetMapPreview({ theme = 'magnetics', compact = false, intera
       mapRef.current = null
       map.remove()
     }
-  }, [compact, interactive, theme])
+  }, [compact, interactive, mapView, theme])
 
   function fit() {
     mapRef.current?.fitBounds(ZIMBABWE_BOUNDS, { padding: compact ? 8 : 28, duration: 450 })
@@ -159,8 +170,8 @@ export function DatasetMapPreview({ theme = 'magnetics', compact = false, intera
         <button type="button" aria-label="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Plus size={18} /></button>
         <button type="button" aria-label="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Minus size={18} /></button>
         <button type="button" aria-label="Fit Zimbabwe" onClick={fit}><Crosshair size={18} /></button>
-        <button type="button" aria-label="Basemap information" title="OpenFreeMap Liberty"><Layers3 size={18} /></button>
       </div>}
+      {!compact && <label className="map-view-switcher dataset-map-view"><Layers3 size={15} aria-hidden="true" /><span className="sr-only">Map view</span><select value={mapView} onChange={(event) => setMapView(event.target.value as MapViewId)}>{MAP_VIEW_OPTIONS.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>}
       <div className="dataset-map-key"><strong>{theme === 'geology' ? 'Geological units' : 'RTP response'}</strong><span><i className="key-high" /> High</span><span><i className="key-low" /> Low</span></div>
       <small className="dataset-map-credit">© OpenFreeMap · OpenStreetMap</small>
     </div>

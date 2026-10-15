@@ -2,12 +2,18 @@ import { Crosshair, Layers3, Minus, Plus } from 'lucide-react'
 import type { FeatureCollection, LineString, Polygon } from 'geojson'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ExplorationTarget } from '../types/targetTypes'
+import {
+  configureTerrainView,
+  getMapStyle,
+  getMapView,
+  MAP_VIEW_OPTIONS,
+  type MapViewId,
+} from '../../../shared/maps/mapViews'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 const GREAT_DYKE_BOUNDS: [[number, number], [number, number]] = [[28.9, -20.85], [30.55, -16.45]]
 
 const PROJECT_CORRIDOR: FeatureCollection<Polygon> = {
@@ -41,15 +47,20 @@ interface TargetMapProps {
 export function TargetMap({ targets, selectedTargetId, onTargetSelect, compact = false }: TargetMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const [mapView, setMapView] = useState<MapViewId>('street')
 
   useEffect(() => {
     if (!containerRef.current) return
     const markers: maplibregl.Marker[] = []
+    const viewDefinition = getMapView(mapView)
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE,
+      style: getMapStyle(mapView),
       center: [29.78, -18.6],
       zoom: 6,
+      pitch: viewDefinition.pitch,
+      bearing: viewDefinition.bearing,
+      maxPitch: 85,
       attributionControl: false,
     })
     mapRef.current = map
@@ -59,6 +70,7 @@ export function TargetMap({ targets, selectedTargetId, onTargetSelect, compact =
     // style.load fires as soon as the style graph is ready. Waiting for the
     // broader map load event can delay local overlays on slow remote tile sets.
     map.on('style.load', () => {
+      configureTerrainView(map, mapView)
       map.addSource('target-project-corridor', { type: 'geojson', data: PROJECT_CORRIDOR })
       map.addLayer({ id: 'target-corridor-fill', type: 'fill', source: 'target-project-corridor', paint: { 'fill-color': '#09a98e', 'fill-opacity': 0.16 } })
       map.addLayer({ id: 'target-corridor-line', type: 'line', source: 'target-project-corridor', paint: { 'line-color': '#08a58d', 'line-width': 2, 'line-dasharray': [2, 1] } })
@@ -85,7 +97,7 @@ export function TargetMap({ targets, selectedTargetId, onTargetSelect, compact =
       mapRef.current = null
       map.remove()
     }
-  }, [compact, onTargetSelect, selectedTargetId, targets])
+  }, [compact, mapView, onTargetSelect, selectedTargetId, targets])
 
   function fitMap() {
     mapRef.current?.fitBounds(GREAT_DYKE_BOUNDS, { padding: compact ? 24 : 46, duration: 450 })
@@ -93,7 +105,8 @@ export function TargetMap({ targets, selectedTargetId, onTargetSelect, compact =
 
   return <div className={`target-map ${compact ? 'is-compact' : ''}`}>
     <div ref={containerRef} className="target-map-canvas" aria-label="Target location map" />
-    <div className="target-map-controls"><button type="button" onClick={() => mapRef.current?.zoomIn()} aria-label="Zoom in"><Plus /></button><button type="button" onClick={() => mapRef.current?.zoomOut()} aria-label="Zoom out"><Minus /></button><button type="button" onClick={fitMap} aria-label="Fit target corridor"><Crosshair /></button><button type="button" title="OpenFreeMap Liberty" aria-label="Basemap information"><Layers3 /></button></div>
+    <div className="target-map-controls"><button type="button" onClick={() => mapRef.current?.zoomIn()} aria-label="Zoom in"><Plus /></button><button type="button" onClick={() => mapRef.current?.zoomOut()} aria-label="Zoom out"><Minus /></button><button type="button" onClick={fitMap} aria-label="Fit target corridor"><Crosshair /></button></div>
+    <label className="map-view-switcher target-map-view"><Layers3 size={15} aria-hidden="true" /><span className="sr-only">Map view</span><select value={mapView} onChange={(event) => setMapView(event.target.value as MapViewId)}>{MAP_VIEW_OPTIONS.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>
     <div className="target-map-legend"><strong>Exploration evidence</strong><span><i className="host" /> Project corridor</span><span><i className="candidate" /> Candidate area</span><span><i className="occurrence" /> Target location</span></div>
     <small className="target-map-disclaimer">Illustrative exploration data · © OpenFreeMap / OSM</small>
   </div>

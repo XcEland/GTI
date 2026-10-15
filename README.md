@@ -17,8 +17,25 @@ The intended workflow is:
 Screening → Review Targets**
 
 The current implementation establishes the application foundation, a portfolio
-Dashboard, a connected Projects workspace, project creation backed by PostGIS,
-and a high-fidelity Map Workspace prototype.
+Dashboard, connected Projects, Data and Targets workspaces, project creation
+backed by PostGIS, and an interactive MapLibre exploration workspace. Filters,
+tabs, map controls and workflow actions respond immediately; operations that
+still require a production dataset backend are identified clearly in the UI.
+
+## Demonstration highlights
+
+For a concise judging walkthrough:
+
+1. Open **Projects** and try the scope tabs, commodity/status filters, sorting,
+   search and grid/list controls.
+2. Open **Create Project**, enter metadata, draw or import an AOI, review its
+   calculated metrics, and persist it through Django/PostGIS.
+3. Open **Map Workspace**, switch between Overview, Layers, Inspect and Compare,
+   then try the map-view selector, layer opacity, measurement and feature popup.
+4. Open **Data** to review the library, upload flow, API provider filtering,
+   validation queue and geological approval decisions.
+5. Open **Targets** to filter candidates, select them on the map, inspect
+   evidence and record a professional review recommendation.
 
 ## Dashboard
 
@@ -49,6 +66,12 @@ separate applications:
    geological approval.
 7. **Dataset Details and Geological Approval** — live MapLibre previews,
    metadata, quality evidence, reviewer context, and explicit decisions.
+
+Implemented interactions include working pagination, detail tabs, metadata
+download, share-link copying, upload file selection, provider filtering,
+connection state, validation sorting/severity filtering, preview variants and
+approval decisions. They remain local where a durable backend endpoint is not
+yet available.
 
 The current dataset records are isolated demonstration data. Spatial previews
 use OpenFreeMap with lightweight WGS 84 demonstration overlays; they do not
@@ -127,6 +150,23 @@ provide zoom, fit-to-project, feature inspection, geodesic distance measurement,
 and fullscreen mode. Search accepts a target identifier such as `CHR-021` or a
 WGS 84 coordinate pair such as `29.82, -18.48`.
 
+Every principal MapLibre surface exposes six presentation modes:
+
+| View | Purpose |
+| --- | --- |
+| Street | Labelled roads, settlements and geographic context |
+| Physical | Vector context with elevation relief |
+| Satellite | Global raster imagery |
+| Realistic | Satellite imagery draped over elevation |
+| Immersive | High-pitch satellite/terrain perspective |
+| Oblique | Angled physical-map interpretation view |
+
+Street and physical styles use OpenFreeMap/OpenStreetMap. Satellite-derived
+views use Esri World Imagery, while terrain presentation uses a public
+Mapterhorn raster DEM. Immersive and oblique are MapLibre 2.5D camera modes,
+not photogrammetric 3D scenes. Project boundaries and geological overlays stay
+in WGS 84 and remain interactive when the presentation mode changes.
+
 The current browser data is explicitly marked as demonstration data. It exists
 to validate interaction and visual design while the project-scoped spatial APIs
 are implemented. Geological values are not presented as exploration conclusions.
@@ -137,6 +177,7 @@ are implemented. Geological values are not presented as exploration conclusions.
 | --- | --- |
 | Frontend | React, TypeScript, Vite, Tailwind CSS |
 | Mapping | MapLibre GL JS, OpenFreeMap |
+| Imagery and terrain | Esri World Imagery, Mapterhorn DEM |
 | Drawing foundation | Terra Draw |
 | Backend | Django, Django REST Framework, GeoDjango |
 | Spatial database | PostgreSQL with PostGIS |
@@ -150,13 +191,8 @@ GTI/
 │   └── src/
 │       ├── features/dashboard/       # Portfolio landing screen and live map
 │       ├── features/data/            # Library, import, validation and approval
-│       ├── features/projects/
+│       ├── features/projects/         # Portfolio, AOI wizard and project detail
 │       ├── features/targets/         # Target library, detail and review flow
-│       │   ├── components/    # Portfolio, wizard, AOI map and project overview
-│       │   ├── data/          # Isolated demonstration portfolio and activity
-│       │   ├── services/      # Django project API client and response adapter
-│       │   ├── types/         # Project, status, activity and progress contracts
-│       │   └── utils/         # Filtering and tested GeoJSON/metric utilities
 │       ├── features/map-workspace/
 │       │   ├── components/    # Map, panels, toolbar, legend and comparison UI
 │       │   ├── data/          # Isolated demonstration dataset
@@ -164,7 +200,7 @@ GTI/
 │       │   ├── services/      # API boundary for future backend integration
 │       │   ├── types/         # Map and domain contracts
 │       │   └── utils/         # Geospatial calculations
-│       └── shared/            # Global application shell
+│       └── shared/            # Application shell and shared map-view config
 ├── backend/
 │   ├── config/                # Django settings and root URLs
 │   └── projects/              # GeoDjango model, serializers, API, tests, migration
@@ -198,6 +234,8 @@ The browser defaults to the Dashboard. Useful review URLs are:
 - `/?workspace=projects&view=create`
 - `/?workspace=projects&view=detail&project=great-dyke-chrome-demo`
 - `/?workspace=map&view=overview`
+- `/?workspace=map&view=overview&mapStyle=satellite`
+- `/?workspace=map&view=overview&mapStyle=immersive`
 - `/?workspace=map&view=layers`
 - `/?workspace=map&view=inspect`
 - `/?workspace=map&view=compare`
@@ -305,7 +343,8 @@ docker compose run --rm --no-deps backend sh -c \
 ```
 
 The frontend tests cover coordinate-distance behavior, project AOI validation and
-metrics, display units, search, combined filters, sorting, and project lookup.
+metrics, display units, search, combined filters, sorting, project lookup and map
+view configuration.
 Backend tests verify readiness plus project create/list/retrieve behavior and
 invalid-geometry rejection.
 
@@ -340,12 +379,18 @@ replaced by these APIs without rewriting the map controls.
 - Authentication and project permissions are not implemented yet.
 - Dataset, layer, and target spatial endpoints are not implemented yet.
 - OpenFreeMap styles require an internet connection during browser use.
+- Satellite and elevation modes also require access to Esri World Imagery and
+  Mapterhorn tiles; the app retains an offline workspace background if a remote
+  base style cannot be loaded.
+- Immersive and oblique modes are 2.5D terrain/camera presentations rather than
+  survey-grade 3D or oblique aerial acquisitions.
 - Layer comparison is a design-ready interaction and still needs backend-provided
   map layers before production use.
 
 ## Next milestone
 
-The next development milestone is **Import and Validate Data**:
+The next development milestone is **Persist Import and Validate Data**. The
+frontend workflow is in place; the next increment makes its records durable:
 
 - Add project-scoped data source and dataset records with provenance.
 - Upload geological, geophysical, occurrence, and sample files.
@@ -354,7 +399,7 @@ The next development milestone is **Import and Validate Data**:
 - Add project permissions and spatial-query tests.
 - Expose approved project layers to Map Workspace through project-scoped APIs.
 
-Later workspaces—data acquisition, validation, target screening, target review,
-field planning, and reporting—remain intentionally out of scope until this phase
-is reviewed.
+Project-scoped target persistence and screening runs follow that data foundation.
+Field planning and reporting remain intentionally out of scope until these
+workspaces are reviewed.
 

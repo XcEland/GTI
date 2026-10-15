@@ -63,6 +63,7 @@
 .project-boundary-map > .project-boundary-map-canvas { position: absolute; inset: 0; }
 .boundary-map-controls { position: absolute; z-index: 2; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; }
 .boundary-map-controls button { display: grid; width: 38px; height: 38px; color: #213b52; background: rgba(255,255,255,.96); border: 1px solid #d1dce4; border-radius: 6px; box-shadow: 0 3px 12px rgba(10,34,47,.2); place-items: center; }
+.boundary-map-view { top: 12px; left: 12px; }
 .area-metrics, .review-metrics { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; border: 1px solid #d8e2e9; border-radius: 8px; }
 .area-metrics > div { display: flex; align-items: center; justify-content: center; gap: 15px; color: #16314e; border-right: 1px solid #dce4ea; }.area-metrics > div:last-child { border: 0; }
 .area-metrics span, .review-metrics span { display: flex; flex-direction: column; color: #6c7f96; font-size: 11px; }.area-metrics strong, .review-metrics strong { margin-top: 3px; color: #132940; font-size: 14px; }

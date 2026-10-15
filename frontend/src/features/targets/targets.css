@@ -45,6 +45,7 @@
 .target-map-canvas, .target-map-canvas.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
 .target-map-controls { position: absolute; z-index: 4; top: 12px; right: 12px; display: grid; overflow: hidden; background: white; border: 1px solid #d5e0e6; border-radius: 8px; box-shadow: 0 5px 12px rgba(15, 38, 54, .12); }
 .target-map-controls button { display: grid; width: 38px; height: 38px; place-items: center; color: #29465e; background: rgba(255,255,255,.96); border: 0; border-bottom: 1px solid #e0e7ec; }.target-map-controls button:last-child { border-bottom: 0; }.target-map-controls svg { width: 17px; }
+.target-map-view { top: 12px; left: 12px; }
 .target-map-marker { display: grid; width: 22px; height: 22px; place-items: center; padding: 0; background: transparent; border: 0; border-radius: 50%; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .35)); }
 .target-map-marker i { grid-area: 1 / 1; width: 17px; height: 17px; background: #f3a72d; border: 4px solid white; border-radius: 50%; box-shadow: 0 0 0 2px #bf6e12; }
 .target-map-marker.is-selected i { width: 22px; height: 22px; background: #e43243; box-shadow: 0 0 0 3px rgba(228, 50, 67, .36); }

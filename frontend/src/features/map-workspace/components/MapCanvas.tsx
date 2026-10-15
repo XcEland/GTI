@@ -20,17 +20,19 @@ import type {
   WorkspaceDataset,
 } from '../types/mapTypes'
 import { formatDistance, haversineDistanceKm } from '../utils/geo'
+import {
+  configureTerrainView,
+  getMapStyle,
+  getMapView,
+  MAP_VIEW_OPTIONS,
+  type MapViewId,
+} from '../../../shared/maps/mapViews'
 
 // Vite pre-bundles MapLibre's main module into node_modules/.vite/deps during
 // development, but its sibling worker is not copied beside that generated file.
 // Supplying the worker as an explicit Vite URL keeps development and production
 // builds on the same, same-origin module worker instead of relying on inference.
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
-
-const BASEMAPS = {
-  liberty: 'https://tiles.openfreemap.org/styles/liberty',
-  bright: 'https://tiles.openfreemap.org/styles/bright',
-} as const
 
 const OFFLINE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -455,7 +457,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const measuringRef = useRef(measuring)
     const inspectingRef = useRef(inspecting)
     const onSelectFeatureRef = useRef(onSelectFeature)
-    const [basemap, setBasemap] = useState<keyof typeof BASEMAPS>('liberty')
+    const [mapView, setMapView] = useState<MapViewId>(() => {
+      const requested = new URLSearchParams(window.location.search).get('mapStyle') as MapViewId | null
+      return requested && MAP_VIEW_OPTIONS.some((option) => option.id === requested) ? requested : 'physical'
+    })
     const [coordinates, setCoordinates] = useState<[number, number] | null>(null)
     const [measureLabel, setMeasureLabel] = useState<string | null>(null)
     const [mapReady, setMapReady] = useState(false)
@@ -485,11 +490,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
 
       setMapReady(false)
       setUsingFallbackBasemap(false)
+      const viewDefinition = getMapView(mapView)
       const primaryMap = new maplibregl.Map({
         container: primaryContainerRef.current,
-        style: BASEMAPS[basemap],
+        style: getMapStyle(mapView),
         center: [29.79, -18.58],
         zoom: 6.7,
+        pitch: viewDefinition.pitch,
+        bearing: viewDefinition.bearing,
+        maxPitch: 85,
         minZoom: 4,
         maxZoom: 17,
         attributionControl: false,
@@ -510,6 +519,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       const handleLoad = () => {
         window.clearTimeout(fallbackTimer)
         primaryMap.resize()
+        configureTerrainView(primaryMap, mapView)
         addWorkspaceLayers(primaryMap, data, comparison ? 'magnetics' : 'all')
         updateLayerPresentation(primaryMap, layersRef.current)
         setSelectedSource(primaryMap, selectedFeatureRef.current)
@@ -524,7 +534,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         if (primaryMap.getSource('project-boundary')) return
         setUsingFallbackBasemap(true)
         primaryMap.setStyle(OFFLINE_STYLE)
-      }, 8000)
+      }, 15000)
 
       const handleMove = () => {
         const companionMap = comparisonMapRef.current
@@ -607,9 +617,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       if (comparison && comparisonContainerRef.current) {
         const companionMap = new maplibregl.Map({
           container: comparisonContainerRef.current,
-          style: BASEMAPS[basemap],
+          style: getMapStyle(mapView),
           center: [29.79, -18.58],
           zoom: 6.7,
+          pitch: viewDefinition.pitch,
+          bearing: viewDefinition.bearing,
+          maxPitch: 85,
           interactive: false,
           attributionControl: false,
         })
@@ -619,11 +632,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           if (!companionMap.getSource('project-boundary')) {
             companionMap.setStyle(OFFLINE_STYLE)
           }
-        }, 8000)
+        }, 15000)
         companionMap.once('style.load', () => {
           if (comparisonFallbackTimer !== null) {
             window.clearTimeout(comparisonFallbackTimer)
           }
+          configureTerrainView(companionMap, mapView)
           addWorkspaceLayers(companionMap, data, 'geology')
           updateLayerPresentation(companionMap, layersRef.current)
           setSelectedSource(companionMap, selectedFeatureRef.current)
@@ -644,7 +658,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         primaryMapRef.current = null
         comparisonMapRef.current = null
       }
-    }, [basemap, comparison, data])
+    }, [comparison, data, mapView])
 
     useEffect(() => {
       if (!mapReady) return
@@ -702,15 +716,23 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         )}
 
         <div className="basemap-selector">
-          <span>Basemap</span>
+          <span>Map view</span>
           <select
-            value={basemap}
-            onChange={(event) => setBasemap(event.target.value as keyof typeof BASEMAPS)}
-            aria-label="Basemap"
+            value={mapView}
+            onChange={(event) => {
+              const nextView = event.target.value as MapViewId
+              setMapView(nextView)
+              const url = new URL(window.location.href)
+              url.searchParams.set('mapStyle', nextView)
+              window.history.replaceState({}, '', url)
+            }}
+            aria-label="Map view"
           >
-            <option value="liberty">Terrain</option>
-            <option value="bright">Light</option>
+            {MAP_VIEW_OPTIONS.map((option) => (
+              <option value={option.id} key={option.id}>{option.label}</option>
+            ))}
           </select>
+          <small>{getMapView(mapView).description}</small>
         </div>
 
         {coordinates && (

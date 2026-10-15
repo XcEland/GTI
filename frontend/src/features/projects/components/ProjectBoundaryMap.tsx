@@ -3,7 +3,7 @@ import {
 } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import {
   TerraDraw,
   TerraDrawPolygonMode,
@@ -14,10 +14,15 @@ import {
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import type { Polygon } from 'geojson'
 import { getPolygonBounds, validatePolygon } from '../utils/projectGeometry'
+import {
+  configureTerrainView,
+  getMapStyle,
+  getMapView,
+  MAP_VIEW_OPTIONS,
+  type MapViewId,
+} from '../../../shared/maps/mapViews'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
-
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
 export interface ProjectBoundaryMapHandle {
   startDrawing: (mode: 'polygon' | 'rectangle') => void
@@ -53,6 +58,7 @@ export const ProjectBoundaryMap = forwardRef<ProjectBoundaryMapHandle, ProjectBo
     const drawRef = useRef<TerraDraw | null>(null)
     const boundaryRef = useRef(boundary)
     const onBoundaryChangeRef = useRef(onBoundaryChange)
+    const [mapView, setMapView] = useState<MapViewId>('street')
 
     useEffect(() => { boundaryRef.current = boundary }, [boundary])
     useEffect(() => { onBoundaryChangeRef.current = onBoundaryChange }, [onBoundaryChange])
@@ -93,16 +99,21 @@ export const ProjectBoundaryMap = forwardRef<ProjectBoundaryMapHandle, ProjectBo
 
     useEffect(() => {
       if (!containerRef.current) return
+      const viewDefinition = getMapView(mapView)
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style: MAP_STYLE,
+        style: getMapStyle(mapView),
         center: [29.85, -18.7],
         zoom: 5.7,
+        pitch: viewDefinition.pitch,
+        bearing: viewDefinition.bearing,
+        maxPitch: 85,
         attributionControl: false,
       })
       mapRef.current = map
 
       map.on('load', () => {
+        configureTerrainView(map, mapView)
         if (!editable) {
           if (boundaryRef.current) {
             addPreviewBoundary(map, boundaryRef.current)
@@ -165,7 +176,7 @@ export const ProjectBoundaryMap = forwardRef<ProjectBoundaryMapHandle, ProjectBo
         mapRef.current = null
         map.remove()
       }
-    }, [editable])
+    }, [editable, mapView])
 
     return (
       <div className="project-boundary-map">
@@ -174,8 +185,14 @@ export const ProjectBoundaryMap = forwardRef<ProjectBoundaryMapHandle, ProjectBo
           <button type="button" aria-label="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Plus size={19} /></button>
           <button type="button" aria-label="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Minus size={19} /></button>
           <button type="button" aria-label="Fit project boundary" onClick={fitBoundary}><Crosshair size={18} /></button>
-          <button type="button" aria-label="Map style information" title="OpenFreeMap Liberty basemap"><Layers3 size={18} /></button>
         </div>
+        <label className="map-view-switcher boundary-map-view">
+          <Layers3 size={16} aria-hidden="true" />
+          <span className="sr-only">Map view</span>
+          <select value={mapView} onChange={(event) => setMapView(event.target.value as MapViewId)}>
+            {MAP_VIEW_OPTIONS.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}
+          </select>
+        </label>
       </div>
     )
   },
